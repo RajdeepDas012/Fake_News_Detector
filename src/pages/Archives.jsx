@@ -14,15 +14,19 @@ export default function Archives() {
     let unsubscribe = () => {};
 
     const loadHistory = async () => {
+      if (!user) {
+        setAnalyses([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        console.log("Firestore read START: Listening to 'searches' collection...");
+        console.log("Firestore read START: Listening to 'searches' for uid:", user.uid);
         const searchesRef = collection(db, 'searches');
-        
-        // Use real-time snapshot on 'searches' collection
-        const q = query(searchesRef, orderBy('createdAt', 'desc'));
+        const q = query(searchesRef, where('uid', '==', user.uid), orderBy('createdAt', 'desc'));
 
         unsubscribe = onSnapshot(q, (snapshot) => {
-          console.log(`Firestore read SUCCESS: Received ${snapshot.docs.length} records from 'searches'`);
+          console.log(`Firestore read SUCCESS: Received ${snapshot.docs.length} records for user`);
           const items = snapshot.docs.map((doc) => {
             const data = doc.data();
             const v = (data.verdict || 'FAKE').toUpperCase();
@@ -48,12 +52,11 @@ export default function Archives() {
           setAnalyses(items);
           setLoading(false);
         }, async (error) => {
-          console.warn("Firestore snapshot query error on 'searches' (likely missing index), falling back to basic fetch:", error);
+          console.warn("Firestore ordered snapshot query notice, running fallback query:", error);
           
-          // Fallback if ordered query fails
           try {
-            const rawSnapshot = await getDocs(searchesRef);
-            console.log(`Firestore fallback read SUCCESS: Received ${rawSnapshot.docs.length} raw records from 'searches'`);
+            const fallbackQ = query(searchesRef, where('uid', '==', user.uid));
+            const rawSnapshot = await getDocs(fallbackQ);
             let items = rawSnapshot.docs.map((doc) => {
               const data = doc.data();
               const v = (data.verdict || 'FAKE').toUpperCase();
@@ -77,11 +80,10 @@ export default function Archives() {
               };
             });
             
-            // Sort in memory by createdAt descending
             items.sort((a, b) => b.rawTimestamp - a.rawTimestamp);
             setAnalyses(items);
           } catch (fallbackErr) {
-            console.error("Firestore read ERROR: Failed both ordered query and fallback fetch on 'searches':", fallbackErr);
+            console.error("Firestore read ERROR:", fallbackErr);
           } finally {
             setLoading(false);
           }

@@ -24,32 +24,26 @@ export default function Verify() {
   });
 
   const saveSearchToFirestore = async (analysisData) => {
+    const user = auth.currentUser;
+    if (!user) {
+      console.error("User must be logged in to save search history.");
+      return;
+    }
+
     try {
-      const currentUser = auth.currentUser;
       const record = {
+        uid: user.uid, // Required by security rules!
+        userId: user.uid,
+        userEmail: user.email,
         text: text,
-        title: text,
-        verdict: (analysisData.verdict || 'FAKE').toUpperCase(),
+        verdict: analysisData.verdict || 'FAKE',
         confidence_score: Number(analysisData.confidence || analysisData.confidence_score || 50),
-        confidence: Number(analysisData.confidence || analysisData.confidence_score || 50),
         summary: analysisData.reason || analysisData.summary || 'Analysis complete.',
-        reason: analysisData.reason || analysisData.summary || 'Analysis complete.',
-        redFlags: analysisData.redFlags || analysisData.red_flags || [],
-        createdAt: serverTimestamp(),
-        userId: currentUser ? currentUser.uid : 'anonymous',
-        userEmail: currentUser ? currentUser.email : 'anonymous@domain.com'
+        createdAt: serverTimestamp()
       };
 
       const docRef = await addDoc(collection(db, 'searches'), record);
       console.log("Firestore write SUCCESS: Added document to 'searches' with ID:", docRef.id);
-
-      // Also save to 'analyses' for backwards compatibility
-      try {
-        await addDoc(collection(db, 'analyses'), record);
-        console.log("Firestore write SUCCESS: Added document to 'analyses' with ID:", docRef.id);
-      } catch (errAnalyses) {
-        console.warn("Firestore 'analyses' collection write warning:", errAnalyses);
-      }
     } catch (errSearches) {
       console.error("Firestore write ERROR: Failed to save to 'searches' collection:", errSearches);
     }
