@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 import { 
   collection, 
   query, 
@@ -276,17 +277,7 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <footer className="bg-surface-container-lowest flex flex-col md:flex-row justify-between items-center w-full px-margin-desktop py-stack-lg border-t border-outline-variant mt-auto">
-        <div>
-          <span className="text-headline-md font-extrabold text-primary block mb-1">TruthCheck AI</span>
-          <p className="text-body-md text-on-surface-variant">© 2024 TruthCheck AI. Clinical Verification for a Digital Age.</p>
-        </div>
-        <div className="flex gap-4">
-          <Link to="/verify" className="text-label-sm text-on-surface-variant hover:text-primary transition-colors">Verify</Link>
-          <Link to="/archives" className="text-label-sm text-on-surface-variant hover:text-primary transition-colors">Archives</Link>
-          <Link to="/profile" className="text-label-sm text-on-surface-variant hover:text-primary transition-colors">Profile</Link>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 export default function Landing() {
   const [newsUrl, setNewsUrl] = useState('');
@@ -112,20 +113,7 @@ export default function Landing() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-surface-container-lowest dark:bg-surface-container-lowest w-full mt-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-stack-lg border-t border-outline-variant max-w-container-max mx-auto gap-4">
-          <div className="text-label-sm font-label-sm text-on-surface-variant">
-            © 2024 TruthCheck AI. Clinical Verification for a Digital Age.
-          </div>
-          <div className="flex gap-4">
-            <a className="text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" href="#">Privacy Policy</a>
-            <a className="text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" href="#">Terms of Service</a>
-            <a className="text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" href="#">API Docs</a>
-            <a className="text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" href="#">Contact Support</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

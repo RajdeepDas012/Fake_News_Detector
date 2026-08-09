@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
 import { 
   collection, 
   query, 
@@ -286,13 +287,7 @@ export default function Archives() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-surface-container-lowest flex justify-between items-center w-full px-margin-desktop py-4 border-t border-outline-variant mt-auto">
-        <span className="text-label-sm text-on-surface-variant">
-          TruthCheck AI Archives{!loading && analyses.length > 0 ? ` • ${analyses.length} Records` : ''}
-        </span>
-        <span className="text-label-sm text-on-surface-variant">© 2024 TruthCheck AI</span>
-      </footer>
+      <Footer />
     </div>
   );
 }

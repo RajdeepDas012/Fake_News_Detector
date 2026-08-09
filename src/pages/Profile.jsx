@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
 import { signOut } from 'firebase/auth';
 import { 
   collection, 
@@ -187,18 +188,7 @@ export default function Profile() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-surface-dim dark:bg-surface-dim border-t border-outline-variant full-width bottom w-full py-stack-lg px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-stack-md mt-stack-lg">
-        <div className="text-on-surface-variant font-body-md text-body-md text-center md:text-left">
-          © 2024 TruthCheck AI. Clinical-grade verification.
-        </div>
-        <div className="flex flex-wrap justify-center gap-stack-md font-label-sm text-label-sm">
-          <a className="text-on-surface-variant hover:text-primary underline transition-all" href="#">Privacy Policy</a>
-          <a className="text-on-surface-variant hover:text-primary underline transition-all" href="#">Terms of Service</a>
-          <a className="text-on-surface-variant hover:text-primary underline transition-all" href="#">Security Disclosure</a>
-          <a className="text-on-surface-variant hover:text-primary underline transition-all" href="#">API Documentation</a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
