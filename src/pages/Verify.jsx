@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { auth, db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  serverTimestamp 
+} from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 export default function Verify() {
   const location = useLocation();
