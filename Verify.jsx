@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from 'react-router-dom';
+import Footer from '../components/Footer';
 import { 
   collection, 
   addDoc, 
@@ -450,6 +451,12 @@ export default function Verify() {
 
               {/* Visual Credibility Meter Bar */}
               <div className="mb-stack-md relative z-10 bg-level-2 p-3.5 rounded-lg border border-outline-variant/40">
+                <div className="flex justify-between items-center mb-1.5 text-xs font-bold uppercase tracking-wider">
+                  <span className="text-on-surface">Credibility Score: {displayConfidence}%</span>
+                  <span style={{ color: getMeterColor(displayConfidence) }}>
+                    {displayConfidence <= 40 ? 'LOW (FAKE)' : displayConfidence <= 70 ? 'MEDIUM (MISLEADING)' : 'HIGH (REAL)'}
+                  </span>
+                </div>
                 <div className="w-full h-3 bg-[#111] rounded-full overflow-hidden p-0.5 border border-outline-variant/30">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out shadow-sm"
@@ -519,17 +526,7 @@ export default function Verify() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-surface-container-lowest dark:bg-surface-container-lowest flex flex-col md:flex-row justify-between items-center w-full px-margin-desktop py-stack-lg border-t border-outline-variant full-width bottom mt-auto">
-        <div className="mb-4 md:mb-0">
-          <span className="text-headline-md font-headline-md font-extrabold text-primary dark:text-primary block mb-2">TruthCheck AI</span>
-          <p className="text-body-md font-body-md text-on-surface-variant">© 2024 TruthCheck AI. Clinical Verification for a Digital Age.</p>
-        </div>
-        <div className="flex flex-wrap gap-4 md:gap-gutter justify-center">
-          <a className="text-on-surface-variant text-label-sm font-label-sm hover:text-on-surface transition-colors" href="#">Privacy Policy</a>
-          <a className="text-on-surface-variant text-label-sm font-label-sm hover:text-on-surface transition-colors" href="#">Terms of Service</a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
