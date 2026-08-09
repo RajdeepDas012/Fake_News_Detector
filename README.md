@@ -15,6 +15,10 @@
 
 ---
 
+## 🎥 Demo Video
+
+https://github.com/user-attachments/assets/dbac0653-4c47-46c7-aa17-7ec228aa65e8
+
 ## 📌 About The Project
 
 TruthCheck AI is a full-stack web application that helps users detect fake news and misinformation using the power of Google Gemini AI. Paste any news article or headline and get an instant credibility verdict with detailed reasoning and red flags.
