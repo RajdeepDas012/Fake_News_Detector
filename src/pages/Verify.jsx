@@ -7,6 +7,14 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+
+// Set up pdf.js worker from CDN to avoid bundler asset path issues
+if (pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '3.11.174'}/pdf.worker.min.js`;
+}
+
 export default function Verify() {
   const location = useLocation();
   const initialInput = location.state?.initialText ||
@@ -14,6 +22,9 @@ export default function Verify() {
 
   const [text, setText] = useState(initialInput);
   const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [fileName, setFileName] = useState('');
+  const [dragOver, setDragOver] = useState(false);
   const [analysisTime, setAnalysisTime] = useState('1.24s');
   const [sourcesScanned, setSourcesScanned] = useState('1,402');
   const [result, setResult] = useState({
@@ -54,6 +65,58 @@ export default function Verify() {
     } catch (errSearches) {
       console.error("Firestore write ERROR: Failed to save to 'searches' collection:", errSearches);
     }
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    setFileName(file.name);
+    setExtracting(true);
+
+    try {
+      const fileExt = file.name.split('.').pop().toLowerCase();
+
+      if (fileExt === 'txt') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setText(e.target.result || '');
+          setExtracting(false);
+        };
+        reader.readAsText(file);
+      } else if (fileExt === 'doc' || fileExt === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setText(result.value || '');
+        setExtracting(false);
+      } else if (fileExt === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        let extractedText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item) => item.str).join(' ');
+          extractedText += pageText + '\n';
+        }
+        setText(extractedText.trim() || 'No text could be extracted from this PDF.');
+        setExtracting(false);
+      } else {
+        alert('Unsupported file format. Please upload .txt, .pdf, .doc, or .docx files.');
+        setExtracting(false);
+      }
+    } catch (err) {
+      console.error('File extraction error:', err);
+      alert('Failed to extract text from file: ' + err.message);
+      setExtracting(false);
+    }
+  };
+
+  const handleClear = () => {
+    setText('');
+    setFileName('');
+    setResult(null);
+    setAnalysisTime('0.00s');
+    setSourcesScanned('0');
   };
 
   const handleAnalyse = async () => {
@@ -148,9 +211,8 @@ export default function Verify() {
     }
   };
 
-  const currentStyles = getVerdictStyles(result.verdict);
-  // Calculate SVG stroke-dasharray for circular gauge
-  const dashArray = `${result.confidence}, 100`;
+  const currentStyles = getVerdictStyles(result?.verdict);
+  const dashArray = `${result?.confidence || 0}, 100`;
 
   return (
     <div className="antialiased min-h-screen flex flex-col font-body-md text-body-md bg-background text-on-surface">
@@ -166,26 +228,89 @@ export default function Verify() {
 
         {/* Input Section (Left Column) */}
         <section className="col-span-1 lg:col-span-7 bg-level-1 rounded-xl p-stack-md border border-outline-variant flex flex-col gap-stack-md h-full">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-primary text-[20px]">psychiatry</span>
-            <h2 className="font-headline-md text-headline-md text-on-surface">Data Input</h2>
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[20px]">psychiatry</span>
+              <h2 className="font-headline-md text-headline-md text-on-surface">Data Input</h2>
+            </div>
+            {(text || result || fileName) && (
+              <button
+                onClick={handleClear}
+                type="button"
+                className="border border-error/50 text-error hover:bg-error/10 text-xs px-3 py-1 rounded flex items-center gap-1 font-bold uppercase transition-all cursor-pointer"
+                title="Clear input and results"
+              >
+                <span className="material-symbols-outlined text-[14px]">clear</span>
+                Clear
+              </button>
+            )}
           </div>
+
+          {/* File Upload Drag and Drop Zone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileUpload(e.dataTransfer.files[0]);
+              }
+            }}
+            className={`bg-[#1a1a1a] border-2 dashed rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
+              dragOver ? 'border-primary bg-primary/10' : 'border-[#333] hover:border-primary/50'
+            }`}
+            onClick={() => document.getElementById('file-upload-input').click()}
+          >
+            <input
+              id="file-upload-input"
+              type="file"
+              accept=".txt,.pdf,.doc,.docx"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileUpload(e.target.files[0]);
+                }
+              }}
+            />
+            <span className="material-symbols-outlined text-primary text-3xl">upload_file</span>
+            <div>
+              <p className="text-body-md font-bold text-on-surface">
+                {extracting ? 'Extracting text from file...' : fileName ? `Uploaded File: ${fileName}` : 'Drag & drop or click to upload'}
+              </p>
+              <p className="text-xs text-on-surface-variant mt-0.5">Supported: PDF, TXT, DOC, DOCX</p>
+            </div>
+          </div>
+
+          {/* Textarea Input with fixed Dark Theme styling */}
           <div className="flex-grow flex flex-col gap-base relative">
             <textarea
-              className="w-full flex-grow min-h-[300px] input-bg input-border rounded-lg p-4 font-body-md text-body-md text-on-surface input-focus resize-none placeholder-on-surface-variant/50 transition-all"
+              style={{
+                backgroundColor: '#1a1a1a',
+                color: '#ffffff',
+                border: '1px solid #333'
+              }}
+              className="w-full flex-grow min-h-[300px] rounded-lg p-4 font-body-md text-body-md text-white resize-none placeholder:text-[#666] focus:border-primary-container focus:outline-none transition-all"
               placeholder="Paste your news article or headline here..."
               spellCheck="false"
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <div className="absolute bottom-4 right-4 text-label-sm font-label-sm text-on-surface-variant opacity-60">
+            <div className="absolute bottom-4 right-4 text-label-sm font-label-sm text-on-surface-variant opacity-60 pointer-events-none">
               Auto-save enabled
             </div>
           </div>
-          <div className="flex justify-end pt-4 border-t border-outline-variant mt-auto">
+
+          <div className="flex justify-between items-center pt-4 border-t border-outline-variant mt-auto">
+            <span className="text-xs text-on-surface-variant">
+              {text.trim() ? `${text.trim().split(/\s+/).length} words` : '0 words'}
+            </span>
             <button
               onClick={handleAnalyse}
-              disabled={loading}
+              disabled={loading || extracting || !text.trim()}
               className="bg-primary-container text-black text-label-sm font-label-sm px-8 py-3 rounded flex items-center gap-2 hover:bg-primary transition-colors font-bold uppercase disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
@@ -205,58 +330,69 @@ export default function Verify() {
 
         {/* Result Section (Right Column) */}
         <section className="col-span-1 lg:col-span-5 flex flex-col gap-stack-md">
-          {/* Primary Result Card */}
-          <div className={`bg-level-1 rounded-xl p-stack-md border border-outline-variant ${currentStyles.accentBorder} relative overflow-hidden`}>
-            {/* Background ambient glow */}
-            <div className={`absolute top-0 right-0 w-32 h-32 ${currentStyles.glowBg} opacity-10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2`}></div>
+          {result ? (
+            /* Primary Result Card */
+            <div className={`bg-level-1 rounded-xl p-stack-md border border-outline-variant ${currentStyles.accentBorder} relative overflow-hidden`}>
+              {/* Background ambient glow */}
+              <div className={`absolute top-0 right-0 w-32 h-32 ${currentStyles.glowBg} opacity-10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2`}></div>
 
-            <div className="flex justify-between items-start mb-stack-md relative z-10">
-              <div>
-                <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase">FINAL VERDICT</p>
-                {/* Status Badge */}
-                <div className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full ${currentStyles.badgeBg} font-status-badge text-status-badge uppercase tracking-wider gap-1`}>
-                  <span className="material-symbols-outlined text-[16px]">{currentStyles.icon}</span>
-                  {result.verdict}
-                </div>
-              </div>
-
-              {/* Confidence Gauge */}
-              <div className="flex flex-col items-end">
-                <div className="relative w-16 h-16 mb-1">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                    <path className="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3"></path>
-                    <path className={currentStyles.strokeColor} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={dashArray} strokeLinecap="round" strokeWidth="3"></path>
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-label-sm text-label-sm text-on-surface font-bold">{result.confidence}%</span>
+              <div className="flex justify-between items-start mb-stack-md relative z-10">
+                <div>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase">FINAL VERDICT</p>
+                  {/* Status Badge */}
+                  <div className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full ${currentStyles.badgeBg} font-status-badge text-status-badge uppercase tracking-wider gap-1`}>
+                    <span className="material-symbols-outlined text-[16px]">{currentStyles.icon}</span>
+                    {result.verdict}
                   </div>
                 </div>
-                <span className="font-label-sm text-[10px] text-on-surface-variant">CONFIDENCE</span>
+
+                {/* Confidence Gauge */}
+                <div className="flex flex-col items-end">
+                  <div className="relative w-16 h-16 mb-1">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path className="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3"></path>
+                      <path className={currentStyles.strokeColor} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={dashArray} strokeLinecap="round" strokeWidth="3"></path>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="font-label-sm text-label-sm text-on-surface font-bold">{result.confidence}%</span>
+                    </div>
+                  </div>
+                  <span className="font-label-sm text-[10px] text-on-surface-variant">CONFIDENCE</span>
+                </div>
+              </div>
+
+              <div className="mb-stack-md relative z-10">
+                <h3 className="font-label-sm text-label-sm text-on-surface-variant mb-2 uppercase">REASONING</h3>
+                <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+                  {result.reason}
+                </p>
+              </div>
+
+              <div className="relative z-10">
+                <h3 className="font-label-sm text-label-sm text-on-surface-variant mb-3 flex items-center gap-2 uppercase">
+                  <span className="material-symbols-outlined text-[16px] text-error">flag</span>
+                  RED FLAGS DETECTED
+                </h3>
+                <ul className="flex flex-col gap-3">
+                  {result.redFlags && result.redFlags.map((flag, idx) => (
+                    <li key={idx} className="flex items-start gap-3 bg-level-2 p-3 rounded border border-outline-variant/50">
+                      <span className="material-symbols-outlined text-error text-[18px] mt-0.5">warning</span>
+                      <span className="font-body-md text-[14px] text-on-surface">{flag}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-
-            <div className="mb-stack-md relative z-10">
-              <h3 className="font-label-sm text-label-sm text-on-surface-variant mb-2 uppercase">REASONING</h3>
-              <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-                {result.reason}
+          ) : (
+            /* Empty State Card when cleared */
+            <div className="bg-level-1 rounded-xl p-12 border border-outline-variant flex flex-col items-center text-center justify-center gap-4 text-on-surface-variant">
+              <span className="material-symbols-outlined text-5xl text-outline">analytics</span>
+              <h3 className="text-headline-md text-on-surface">No Analysis Active</h3>
+              <p className="text-body-md">
+                Paste an article or upload a file (.pdf, .txt, .doc, .docx) and click <strong className="text-primary">Analyse Now</strong> to view real-time forensic verdict.
               </p>
             </div>
-
-            <div className="relative z-10">
-              <h3 className="font-label-sm text-label-sm text-on-surface-variant mb-3 flex items-center gap-2 uppercase">
-                <span className="material-symbols-outlined text-[16px] text-error">flag</span>
-                RED FLAGS DETECTED
-              </h3>
-              <ul className="flex flex-col gap-3">
-                {result.redFlags && result.redFlags.map((flag, idx) => (
-                  <li key={idx} className="flex items-start gap-3 bg-level-2 p-3 rounded border border-outline-variant/50">
-                    <span className="material-symbols-outlined text-error text-[18px] mt-0.5">warning</span>
-                    <span className="font-body-md text-[14px] text-on-surface">{flag}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          )}
 
           {/* Metadata Card */}
           <div className="bg-level-1 rounded-xl p-stack-sm border border-outline-variant flex justify-between items-center px-4">
