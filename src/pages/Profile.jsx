@@ -12,12 +12,42 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
+function AnimatedStat({ value }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const target = Number(value) || 0;
+    if (target === 0) {
+      setDisplayValue(0);
+      return;
+    }
+    const duration = 350;
+    const steps = 12;
+    const stepTime = duration / steps;
+    const increment = target / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setDisplayValue(target);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(Math.round(current));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const user = auth.currentUser;
   const email = user?.email || 'analyst@domain.com';
 
-  // Derive real account creation date from Firebase Auth metadata
   const memberSince = user?.metadata?.creationTime
     ? new Date(user.metadata.creationTime).toLocaleDateString('en-US', {
         month: 'long', year: 'numeric'
@@ -63,11 +93,11 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-on-surface font-body-md text-body-md">
+    <div className="flex flex-col min-h-screen bg-background text-on-surface font-body-md text-body-md animate-fade-in">
       {/* Main Content */}
       <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg flex flex-col gap-stack-lg">
         {/* Profile Section */}
-        <section className="flex justify-center">
+        <section className="flex justify-center animate-slide-up">
           <div className="card-bg rounded-lg p-stack-md w-full max-w-md flex flex-col items-center text-center glow-true border border-outline-variant">
             <div className="w-24 h-24 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-display-lg text-display-lg mb-stack-sm font-bold">
               {initial}
@@ -82,27 +112,33 @@ export default function Profile() {
         </section>
 
         {/* Stats Section */}
-        <section className="flex flex-col gap-stack-md">
+        <section className="flex flex-col gap-stack-md animate-slide-up stagger-1">
           <h2 className="font-headline-md text-headline-md border-b border-outline-variant pb-base text-on-surface">
             Your Activity
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
             {/* Total Checked */}
-            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base">
+            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base animate-slide-up stagger-1">
               <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Total Checked</span>
-                <span className="font-display-lg text-display-lg text-on-surface">{stats.total}</span>
+              <span className="font-display-lg text-display-lg text-on-surface font-bold">
+                <AnimatedStat value={stats.total} />
+              </span>
             </div>
             {/* Fake Detected */}
-            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base glow-false relative overflow-hidden">
+            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base glow-false relative overflow-hidden animate-slide-up stagger-2">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
               <span className="font-label-sm text-label-sm text-on-surface-variant uppercase pl-2">Fake Detected</span>
-                <span className="font-display-lg text-display-lg text-error pl-2">{stats.fake}</span>
+              <span className="font-display-lg text-display-lg text-error font-bold pl-2">
+                <AnimatedStat value={stats.fake} />
+              </span>
             </div>
             {/* Real Verified */}
-            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base glow-true relative overflow-hidden">
+            <div className="card-bg rounded-lg p-stack-md border border-outline-variant flex flex-col gap-base glow-true relative overflow-hidden animate-slide-up stagger-3">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
               <span className="font-label-sm text-label-sm text-on-surface-variant uppercase pl-2">Real Verified</span>
-                <span className="font-display-lg text-display-lg text-primary pl-2">{stats.real}</span>
+              <span className="font-display-lg text-display-lg text-primary font-bold pl-2">
+                <AnimatedStat value={stats.real} />
+              </span>
             </div>
           </div>
         </section>

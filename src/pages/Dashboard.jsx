@@ -12,6 +12,37 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
+function AnimatedStat({ value }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const target = Number(value) || 0;
+    if (target === 0) {
+      setDisplayValue(0);
+      return;
+    }
+    const duration = 350;
+    const steps = 12;
+    const stepTime = duration / steps;
+    const increment = target / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setDisplayValue(target);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(Math.round(current));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const user = auth.currentUser;
@@ -108,11 +139,11 @@ export default function Dashboard() {
   }, [user]);
 
   return (
-    <div className="font-body-md text-body-md min-h-screen flex flex-col bg-background text-on-surface">
+    <div className="font-body-md text-body-md min-h-screen flex flex-col bg-background text-on-surface animate-fade-in">
       <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg flex flex-col gap-stack-lg">
 
         {/* Welcome Section */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-stack-md bg-surface-level-1 p-6 rounded-xl border border-outline-variant">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-stack-md bg-surface-level-1 p-6 rounded-xl border border-outline-variant animate-slide-up">
           <div>
             <span className="text-label-sm font-label-sm text-primary uppercase font-bold tracking-wider">Dashboard Overview</span>
             <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface mt-1">
@@ -125,29 +156,29 @@ export default function Dashboard() {
 
           <button
             onClick={() => navigate('/verify')}
-            className="w-full md:w-auto bg-primary-container text-black px-8 py-4 rounded-xl font-headline-md text-body-lg font-bold uppercase tracking-wider flex items-center justify-center gap-3 hover:bg-primary transition-all shadow-[0_0_20px_rgba(0,200,83,0.3)] glow-primary cursor-pointer"
+            className="w-full md:w-auto bg-primary-container text-black px-8 py-4 rounded-xl font-headline-md text-body-lg font-bold uppercase tracking-wider flex items-center justify-center gap-3 hover:bg-primary transition-all shadow-[0_0_20px_rgba(0,200,83,0.3)] glow-primary cursor-pointer animate-pulse-glow"
           >
             <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>add_circle</span>
             Check New Article
           </button>
         </header>
 
-        {/* 3 Quick Stat Cards */}
+        {/* 3 Quick Stat Cards with Staggered Slide-Up & Count Up */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base hover:glow-primary transition-all">
+          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base hover:glow-primary transition-all animate-slide-up stagger-1">
             <div className="flex justify-between items-center text-on-surface-variant">
               <span className="font-label-sm text-label-sm uppercase tracking-wider">Total Checked</span>
               <span className="material-symbols-outlined text-primary">find_in_page</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="font-display-lg text-display-lg text-on-surface font-bold">
-                {loading ? '—' : stats.total}
+                {loading ? '—' : <AnimatedStat value={stats.total} />}
               </span>
               <span className="text-label-sm text-on-surface-variant">Articles</span>
             </div>
           </div>
 
-          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base glow-false relative overflow-hidden">
+          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base glow-false relative overflow-hidden animate-slide-up stagger-2">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
             <div className="flex justify-between items-center text-on-surface-variant pl-2">
               <span className="font-label-sm text-label-sm uppercase tracking-wider">Fake Detected</span>
@@ -155,13 +186,13 @@ export default function Dashboard() {
             </div>
             <div className="flex items-baseline gap-2 pl-2">
               <span className="font-display-lg text-display-lg text-error font-bold">
-                {loading ? '—' : stats.fake}
+                {loading ? '—' : <AnimatedStat value={stats.fake} />}
               </span>
               <span className="text-label-sm text-on-surface-variant">Flawed claims</span>
             </div>
           </div>
 
-          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base glow-true relative overflow-hidden">
+          <div className="surface-card rounded-xl p-6 border border-outline-variant flex flex-col justify-between gap-base glow-true relative overflow-hidden animate-slide-up stagger-3">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
             <div className="flex justify-between items-center text-on-surface-variant pl-2">
               <span className="font-label-sm text-label-sm uppercase tracking-wider">Real Verified</span>
@@ -169,7 +200,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-baseline gap-2 pl-2">
               <span className="font-display-lg text-display-lg text-primary font-bold">
-                {loading ? '—' : stats.real}
+                {loading ? '—' : <AnimatedStat value={stats.real} />}
               </span>
               <span className="text-label-sm text-on-surface-variant">Authenticated</span>
             </div>
@@ -177,7 +208,7 @@ export default function Dashboard() {
         </section>
 
         {/* Recent 3 Analyses */}
-        <section className="surface-card rounded-xl p-6 border border-outline-variant">
+        <section className="surface-card rounded-xl p-6 border border-outline-variant animate-slide-up stagger-4">
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant">
             <div>
               <h2 className="text-headline-md font-headline-md text-on-surface">Recent Verifications</h2>

@@ -7,7 +7,9 @@ import {
   orderBy, 
   getDocs,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch,
+  doc
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -17,6 +19,31 @@ export default function Archives() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [analyses, setAnalyses] = useState([]);
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearAll = async () => {
+    if (!user) return;
+    const confirmed = window.confirm(
+      `Delete all ${analyses.length} record${analyses.length !== 1 ? 's' : ''} from your history? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setClearing(true);
+    try {
+      const q = query(collection(db, 'searches'), where('uid', '==', user.uid));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => batch.delete(doc(db, 'searches', d.id)));
+      await batch.commit();
+      console.log(`Cleared ${snapshot.size} search history records.`);
+      setAnalyses([]);
+    } catch (err) {
+      console.error('Clear all history error:', err);
+      alert('Failed to clear history: ' + err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -118,7 +145,7 @@ export default function Archives() {
   );
 
   return (
-    <div className="font-body-md text-body-md min-h-screen flex flex-col bg-background text-on-surface">
+    <div className="font-body-md text-body-md min-h-screen flex flex-col bg-background text-on-surface animate-fade-in">
       <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg flex flex-col gap-stack-md">
 
         {/* Page Header */}
@@ -132,22 +159,39 @@ export default function Archives() {
             </p>
           </div>
 
-          {/* Search Bar */}
-          <div className="bg-surface-variant/50 border border-outline-variant rounded-lg px-4 py-2.5 flex items-center gap-3 w-full md:w-80 focus-within:border-primary transition-all">
-            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-            <input
-              className="bg-transparent border-none outline-none text-label-sm font-label-sm text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 p-0 w-full"
-              placeholder="Filter by headline or verdict..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Search Bar */}
+            <div className="bg-surface-variant/50 border border-outline-variant rounded-lg px-4 py-2.5 flex items-center gap-3 flex-grow md:w-80 focus-within:border-primary transition-all">
+              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+              <input
+                className="bg-transparent border-none outline-none text-label-sm font-label-sm text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 p-0 w-full"
+                placeholder="Filter by headline or verdict..."
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Clear All History Button */}
+            {analyses.length > 0 && (
               <button
-                onClick={() => setSearchTerm('')}
-                className="text-on-surface-variant hover:text-on-surface transition-colors"
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="shrink-0 border border-error/50 text-error hover:bg-error/10 px-4 py-2.5 rounded-lg text-label-sm font-label-sm font-bold uppercase flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                title="Delete all search history"
               >
-                <span className="material-symbols-outlined text-[18px]">close</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  {clearing ? 'sync' : 'delete_sweep'}
+                </span>
+                {clearing ? 'Clearing...' : 'Clear All'}
               </button>
             )}
           </div>

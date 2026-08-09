@@ -5,6 +5,23 @@ export default function Landing() {
   const [newsUrl, setNewsUrl] = useState('');
   const navigate = useNavigate();
 
+  // Hero title typewriter effect
+  const fullTitle = 'Detect Fake News Instantly';
+  const [displayedTitle, setDisplayedTitle] = useState('');
+
+  useEffect(() => {
+    let index = 0;
+    const timer = setInterval(() => {
+      if (index <= fullTitle.length) {
+        setDisplayedTitle(fullTitle.substring(0, index));
+        index++;
+      } else {
+        clearInterval(timer);
+      }
+    }, 40);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleVerify = (e) => {
     e.preventDefault();
     if (newsUrl.trim()) {
@@ -15,17 +32,22 @@ export default function Landing() {
   };
 
   return (
-    <div className="antialiased min-h-screen flex flex-col font-body-md text-body-md text-on-surface bg-background">
+    <div className="antialiased min-h-screen flex flex-col font-body-md text-body-md text-on-surface bg-background animate-fade-in">
       {/* Main Content Canvas */}
       <main className="flex-grow flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop w-full max-w-container-max mx-auto py-stack-lg gap-stack-lg">
         {/* Hero Section */}
-        <section className="text-center max-w-3xl flex flex-col items-center gap-stack-md py-20">
-          <h1 className="text-display-lg font-display-lg text-on-surface">Detect Fake News Instantly</h1>
-          <p className="text-body-lg font-body-lg text-on-surface-variant">Powered by advanced AI for clinical verification in the digital age</p>
-          <div className="mt-8 flex gap-4">
+        <section className="text-center max-w-3xl flex flex-col items-center gap-stack-md py-20 animate-slide-up">
+          <h1 className="text-display-lg font-display-lg text-on-surface min-h-[3rem] tracking-tight">
+            {displayedTitle}
+            <span className="inline-block w-1.5 h-8 ml-1 bg-primary align-middle animate-pulse"></span>
+          </h1>
+          <p className="text-body-lg font-body-lg text-on-surface-variant animate-fade-in stagger-2">
+            Powered by advanced AI for clinical verification in the digital age
+          </p>
+          <div className="mt-8 flex gap-4 animate-slide-up stagger-3">
             <Link
               to="/auth"
-              className="bg-primary-container text-black px-8 py-3 rounded-lg font-label-sm text-label-sm hover:opacity-80 transition-all duration-150 glow-primary font-bold uppercase"
+              className="bg-primary-container text-black px-8 py-3 rounded-lg font-label-sm text-label-sm hover:opacity-90 transition-all duration-150 animate-pulse-glow font-bold uppercase cursor-pointer"
             >
               Get Started
             </Link>
@@ -37,7 +59,7 @@ export default function Landing() {
           <h2 className="text-headline-lg md:text-headline-lg font-headline-lg text-center mb-8">How It Works</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
             {/* Card 1 */}
-            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-primary hover:glow-primary transition-all duration-300">
+            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-primary hover:glow-primary transition-all duration-300 animate-slide-up stagger-1">
               <span className="material-symbols-outlined text-primary text-4xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>
                 content_paste
               </span>
@@ -47,7 +69,7 @@ export default function Landing() {
               </p>
             </div>
             {/* Card 2 */}
-            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-secondary hover:glow-primary transition-all duration-300">
+            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-secondary hover:glow-primary transition-all duration-300 animate-slide-up stagger-2">
               <span className="material-symbols-outlined text-secondary text-4xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>
                 analytics
               </span>
@@ -57,7 +79,7 @@ export default function Landing() {
               </p>
             </div>
             {/* Card 3 */}
-            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-primary-container hover:glow-primary transition-all duration-300">
+            <div className="surface-card rounded-xl p-8 flex flex-col gap-stack-sm border-l-4 border-primary-container hover:glow-primary transition-all duration-300 animate-slide-up stagger-3">
               <span className="material-symbols-outlined text-primary-container text-4xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>
                 verified
               </span>
