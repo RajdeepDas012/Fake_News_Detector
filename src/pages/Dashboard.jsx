@@ -13,60 +13,44 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
     const fetchData = async () => {
       try {
-        // Fetch ALL analyses to compute stats
-        const allQ = query(
-          collection(db, 'analyses'),
-          where('userId', '==', user.uid)
-        );
-        const allSnapshot = await getDocs(allQ);
+        let snapshot = await getDocs(collection(db, 'searches'));
+        if (snapshot.empty) {
+          snapshot = await getDocs(collection(db, 'analyses'));
+        }
 
-        let total = allSnapshot.size;
+        let total = snapshot.size;
         let fake = 0, real = 0;
-        allSnapshot.forEach((doc) => {
-          const v = (doc.data().verdict || '').toUpperCase();
+        let docsArray = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const v = (data.verdict || '').toUpperCase();
           if (v === 'FAKE') fake++;
           else if (v === 'REAL') real++;
-        });
-        setStats({ total, fake, real });
 
-        // Fetch recent 3 analyses
-        const recentQ = query(
-          collection(db, 'analyses'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        const recentSnapshot = await getDocs(recentQ);
-        const items = recentSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          const v = (data.verdict || 'FAKE').toUpperCase();
-          let type = 'false';
-          if (v === 'REAL') type = 'true';
-          if (v === 'MISLEADING') type = 'warning';
-
-          return {
+          docsArray.push({
             id: doc.id,
-            title: data.title || 'Untitled Article',
+            title: data.text || data.title || 'Untitled Article',
             date: data.createdAt?.toDate
               ? data.createdAt.toDate().toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric'
                 })
               : 'Today',
-            score: `${data.confidence ?? 85}%`,
+            score: `${data.confidence_score ?? data.confidence ?? 85}%`,
             verdict: data.verdict || 'Fake',
-            type,
-          };
+            type: v === 'REAL' ? 'true' : v === 'MISLEADING' ? 'warning' : 'false',
+            timestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
+          });
         });
-        setRecentAnalyses(items);
+
+        setStats({ total, fake, real });
+
+        // Sort by timestamp desc and pick top 3
+        docsArray.sort((a, b) => b.timestamp - a.timestamp);
+        setRecentAnalyses(docsArray.slice(0, 3));
       } catch (err) {
-        console.log('Dashboard fetch error:', err.message);
+        console.error('Dashboard fetch error:', err);
       } finally {
         setLoading(false);
       }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 
 export default function Archives() {
   const navigate = useNavigate();
@@ -11,47 +11,90 @@ export default function Archives() {
   const [analyses, setAnalyses] = useState([]);
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const q = query(
-          collection(db, 'analyses'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const v = (data.verdict || 'FAKE').toUpperCase();
-          let type = 'false';
-          if (v === 'REAL') type = 'true';
-          if (v === 'MISLEADING') type = 'warning';
+    let unsubscribe = () => {};
 
-          return {
-            id: doc.id,
-            title: data.title || 'Untitled Article Analysis',
-            date: data.createdAt?.toDate
-              ? data.createdAt.toDate().toLocaleDateString('en-US', {
-                  month: 'short', day: 'numeric', year: 'numeric'
-                })
-              : 'Recent',
-            confidence: data.confidence ?? 85,
-            verdict: v,
-            type,
-          };
+    const loadHistory = async () => {
+      try {
+        console.log("Firestore read START: Listening to 'searches' collection...");
+        const searchesRef = collection(db, 'searches');
+        
+        // Use real-time snapshot on 'searches' collection
+        const q = query(searchesRef, orderBy('createdAt', 'desc'));
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          console.log(`Firestore read SUCCESS: Received ${snapshot.docs.length} records from 'searches'`);
+          const items = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            const v = (data.verdict || 'FAKE').toUpperCase();
+            let type = 'false';
+            if (v === 'REAL') type = 'true';
+            if (v === 'MISLEADING') type = 'warning';
+
+            return {
+              id: doc.id,
+              title: data.text || data.title || 'Untitled Article Analysis',
+              date: data.createdAt?.toDate
+                ? data.createdAt.toDate().toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })
+                : 'Just now',
+              confidence: data.confidence_score ?? data.confidence ?? 85,
+              summary: data.summary || data.reason || '',
+              verdict: v,
+              type,
+              rawTimestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
+            };
+          });
+          setAnalyses(items);
+          setLoading(false);
+        }, async (error) => {
+          console.warn("Firestore snapshot query error on 'searches' (likely missing index), falling back to basic fetch:", error);
+          
+          // Fallback if ordered query fails
+          try {
+            const rawSnapshot = await getDocs(searchesRef);
+            console.log(`Firestore fallback read SUCCESS: Received ${rawSnapshot.docs.length} raw records from 'searches'`);
+            let items = rawSnapshot.docs.map((doc) => {
+              const data = doc.data();
+              const v = (data.verdict || 'FAKE').toUpperCase();
+              let type = 'false';
+              if (v === 'REAL') type = 'true';
+              if (v === 'MISLEADING') type = 'warning';
+
+              return {
+                id: doc.id,
+                title: data.text || data.title || 'Untitled Article Analysis',
+                date: data.createdAt?.toDate
+                  ? data.createdAt.toDate().toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })
+                  : 'Just now',
+                confidence: data.confidence_score ?? data.confidence ?? 85,
+                summary: data.summary || data.reason || '',
+                verdict: v,
+                type,
+                rawTimestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
+              };
+            });
+            
+            // Sort in memory by createdAt descending
+            items.sort((a, b) => b.rawTimestamp - a.rawTimestamp);
+            setAnalyses(items);
+          } catch (fallbackErr) {
+            console.error("Firestore read ERROR: Failed both ordered query and fallback fetch on 'searches':", fallbackErr);
+          } finally {
+            setLoading(false);
+          }
         });
-        setAnalyses(items);
       } catch (err) {
-        console.log('Archives fetch error:', err.message);
-      } finally {
+        console.error("Firestore initialization error in Archives:", err);
         setLoading(false);
       }
     };
 
-    fetchHistory();
+    loadHistory();
+
+    return () => unsubscribe();
   }, [user]);
 
   const filteredAnalyses = analyses.filter(

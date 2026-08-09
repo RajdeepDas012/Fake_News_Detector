@@ -19,18 +19,14 @@ export default function Profile() {
   const [stats, setStats] = useState({ total: 0, fake: 0, real: 0, misleading: 0 });
 
   useEffect(() => {
-    if (!user) {
-      setStats({ total: 0, fake: 0, real: 0, misleading: 0 });
-      return;
-    }
     const fetchStats = async () => {
       try {
-        const q = query(collection(db, 'analyses'), where('userId', '==', user.uid));
-        const snapshot = await getDocs(q);
+        let snapshot = await getDocs(collection(db, 'searches'));
+        if (snapshot.empty) {
+          snapshot = await getDocs(collection(db, 'analyses'));
+        }
         let total = snapshot.size;
-        let fake = 0,
-          real = 0,
-          misleading = 0;
+        let fake = 0, real = 0, misleading = 0;
         snapshot.forEach((doc) => {
           const v = (doc.data().verdict || '').toUpperCase();
           if (v === 'FAKE') fake++;
@@ -39,7 +35,7 @@ export default function Profile() {
         });
         setStats({ total, fake, real, misleading });
       } catch (err) {
-        console.log('Stats fetch error:', err.message);
+        console.error('Profile stats fetch error:', err);
       }
     };
     fetchStats();

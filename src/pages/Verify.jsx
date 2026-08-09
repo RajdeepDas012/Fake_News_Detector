@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { auth, db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function Verify() {
   const location = useLocation();
@@ -21,6 +23,38 @@ export default function Verify() {
     ]
   });
 
+  const saveSearchToFirestore = async (analysisData) => {
+    try {
+      const currentUser = auth.currentUser;
+      const record = {
+        text: text,
+        title: text,
+        verdict: (analysisData.verdict || 'FAKE').toUpperCase(),
+        confidence_score: Number(analysisData.confidence || analysisData.confidence_score || 50),
+        confidence: Number(analysisData.confidence || analysisData.confidence_score || 50),
+        summary: analysisData.reason || analysisData.summary || 'Analysis complete.',
+        reason: analysisData.reason || analysisData.summary || 'Analysis complete.',
+        redFlags: analysisData.redFlags || analysisData.red_flags || [],
+        createdAt: serverTimestamp(),
+        userId: currentUser ? currentUser.uid : 'anonymous',
+        userEmail: currentUser ? currentUser.email : 'anonymous@domain.com'
+      };
+
+      const docRef = await addDoc(collection(db, 'searches'), record);
+      console.log("Firestore write SUCCESS: Added document to 'searches' with ID:", docRef.id);
+
+      // Also save to 'analyses' for backwards compatibility
+      try {
+        await addDoc(collection(db, 'analyses'), record);
+        console.log("Firestore write SUCCESS: Added document to 'analyses' with ID:", docRef.id);
+      } catch (errAnalyses) {
+        console.warn("Firestore 'analyses' collection write warning:", errAnalyses);
+      }
+    } catch (errSearches) {
+      console.error("Firestore write ERROR: Failed to save to 'searches' collection:", errSearches);
+    }
+  };
+
   const handleAnalyse = async () => {
     if (!text.trim()) return;
     setLoading(true);
@@ -37,17 +71,18 @@ export default function Verify() {
       setAnalysisTime(elapsed);
       setSourcesScanned(Math.floor(1000 + Math.random() * 800).toLocaleString());
 
+      let analysisResult;
       if (response.ok) {
         const data = await response.json();
-        setResult({
+        analysisResult = {
           verdict: data.verdict || 'FAKE',
-          confidence: data.confidence || 50,
-          reason: data.reason || 'Analysis complete.',
-          redFlags: data.redFlags || []
-        });
+          confidence: data.confidence || data.confidence_score || 50,
+          reason: data.reason || data.summary || 'Analysis complete.',
+          redFlags: data.redFlags || data.red_flags || []
+        };
       } else {
         // Fallback for demo if server API key is not configured yet
-        setResult({
+        analysisResult = {
           verdict: 'FAKE',
           confidence: 88,
           reason: 'Automated linguistic analysis indicates high sensationalism and zero authoritative database matches for giant flying telepathic penguins.',
@@ -56,13 +91,15 @@ export default function Verify() {
             'Sensationalized language designed to trigger social shares.',
             'No matching records in international academic repositories.'
           ]
-        });
+        };
       }
+      setResult(analysisResult);
+      await saveSearchToFirestore(analysisResult);
     } catch (err) {
       console.error("Analyse request error:", err);
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2) + 's';
       setAnalysisTime(elapsed);
-      setResult({
+      const fallbackResult = {
         verdict: 'FAKE',
         confidence: 95,
         reason: 'Automated evaluation detected multiple extreme anomalies and zero factual backing.',
@@ -70,7 +107,9 @@ export default function Verify() {
           'Extreme unverified scientific claims.',
           'Zero citations from scientific publications.'
         ]
-      });
+      };
+      setResult(fallbackResult);
+      await saveSearchToFirestore(fallbackResult);
     } finally {
       setLoading(false);
     }
