@@ -13,42 +13,81 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
-        let snapshot = await getDocs(collection(db, 'searches'));
-        if (snapshot.empty) {
-          snapshot = await getDocs(collection(db, 'analyses'));
-        }
+        const searchesRef = collection(db, "searches");
 
-        let total = snapshot.size;
+        // 1. Fetch user searches to compute stats
+        const allQ = query(searchesRef, where("uid", "==", currentUser.uid));
+        const allSnapshot = await getDocs(allQ);
+
+        let total = allSnapshot.size;
         let fake = 0, real = 0;
-        let docsArray = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const v = (data.verdict || '').toUpperCase();
+        allSnapshot.forEach((doc) => {
+          const v = (doc.data().verdict || '').toUpperCase();
           if (v === 'FAKE') fake++;
           else if (v === 'REAL') real++;
-
-          docsArray.push({
-            id: doc.id,
-            title: data.text || data.title || 'Untitled Article',
-            date: data.createdAt?.toDate
-              ? data.createdAt.toDate().toLocaleDateString('en-US', {
-                  month: 'short', day: 'numeric', year: 'numeric'
-                })
-              : 'Today',
-            score: `${data.confidence_score ?? data.confidence ?? 85}%`,
-            verdict: data.verdict || 'Fake',
-            type: v === 'REAL' ? 'true' : v === 'MISLEADING' ? 'warning' : 'false',
-            timestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
-          });
         });
-
         setStats({ total, fake, real });
 
-        // Sort by timestamp desc and pick top 3
-        docsArray.sort((a, b) => b.timestamp - a.timestamp);
-        setRecentAnalyses(docsArray.slice(0, 3));
+        // 2. Fetch recent 3 searches ordered by timestamp desc
+        let recentItems = [];
+        try {
+          const recentQ = query(
+            searchesRef,
+            where("uid", "==", currentUser.uid),
+            orderBy("timestamp", "desc"),
+            limit(3)
+          );
+          const recentSnapshot = await getDocs(recentQ);
+          recentItems = recentSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            const v = (data.verdict || 'FAKE').toUpperCase();
+            const ts = data.timestamp || data.createdAt;
+            return {
+              id: doc.id,
+              title: data.headline || data.text || data.title || 'Untitled Article',
+              date: ts?.toDate
+                ? ts.toDate().toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                  })
+                : 'Today',
+              score: `${data.confidence ?? data.confidence_score ?? 85}%`,
+              verdict: data.verdict || 'Fake',
+              type: v === 'REAL' ? 'true' : v === 'MISLEADING' ? 'warning' : 'false',
+            };
+          });
+        } catch (recentErr) {
+          console.warn("Dashboard ordered query fallback:", recentErr);
+          const docsArray = allSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            const v = (data.verdict || 'FAKE').toUpperCase();
+            const ts = data.timestamp || data.createdAt;
+            return {
+              id: doc.id,
+              title: data.headline || data.text || data.title || 'Untitled Article',
+              date: ts?.toDate
+                ? ts.toDate().toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                  })
+                : 'Today',
+              score: `${data.confidence ?? data.confidence_score ?? 85}%`,
+              verdict: data.verdict || 'Fake',
+              type: v === 'REAL' ? 'true' : v === 'MISLEADING' ? 'warning' : 'false',
+              rawTime: ts?.toDate ? ts.toDate().getTime() : 0
+            };
+          });
+          docsArray.sort((a, b) => b.rawTime - a.rawTime);
+          recentItems = docsArray.slice(0, 3);
+        }
+
+        setRecentAnalyses(recentItems);
       } catch (err) {
         console.error('Dashboard fetch error:', err);
       } finally {

@@ -23,7 +23,7 @@ export default function Archives() {
       try {
         console.log("Firestore read START: Listening to 'searches' for uid:", user.uid);
         const searchesRef = collection(db, 'searches');
-        const q = query(searchesRef, where('uid', '==', user.uid), orderBy('createdAt', 'desc'));
+        const q = query(searchesRef, where('uid', '==', user.uid), orderBy('timestamp', 'desc'));
 
         unsubscribe = onSnapshot(q, (snapshot) => {
           console.log(`Firestore read SUCCESS: Received ${snapshot.docs.length} records for user`);
@@ -34,19 +34,21 @@ export default function Archives() {
             if (v === 'REAL') type = 'true';
             if (v === 'MISLEADING') type = 'warning';
 
+            const ts = data.timestamp || data.createdAt;
+
             return {
               id: doc.id,
-              title: data.text || data.title || 'Untitled Article Analysis',
-              date: data.createdAt?.toDate
-                ? data.createdAt.toDate().toLocaleDateString('en-US', {
+              title: data.headline || data.text || data.title || 'Untitled Article Analysis',
+              date: ts?.toDate
+                ? ts.toDate().toLocaleDateString('en-US', {
                     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
                   })
                 : 'Just now',
-              confidence: data.confidence_score ?? data.confidence ?? 85,
-              summary: data.summary || data.reason || '',
+              confidence: data.confidence ?? data.confidence_score ?? 85,
+              summary: data.reason || data.summary || '',
               verdict: v,
               type,
-              rawTimestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
+              rawTimestamp: ts?.toDate ? ts.toDate().getTime() : Date.now()
             };
           });
           setAnalyses(items);
@@ -64,19 +66,21 @@ export default function Archives() {
               if (v === 'REAL') type = 'true';
               if (v === 'MISLEADING') type = 'warning';
 
+              const ts = data.timestamp || data.createdAt;
+
               return {
                 id: doc.id,
-                title: data.text || data.title || 'Untitled Article Analysis',
-                date: data.createdAt?.toDate
-                  ? data.createdAt.toDate().toLocaleDateString('en-US', {
+                title: data.headline || data.text || data.title || 'Untitled Article Analysis',
+                date: ts?.toDate
+                  ? ts.toDate().toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     })
                   : 'Just now',
-                confidence: data.confidence_score ?? data.confidence ?? 85,
-                summary: data.summary || data.reason || '',
+                confidence: data.confidence ?? data.confidence_score ?? 85,
+                summary: data.reason || data.summary || '',
                 verdict: v,
                 type,
-                rawTimestamp: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : Date.now()
+                rawTimestamp: ts?.toDate ? ts.toDate().getTime() : Date.now()
               };
             });
             

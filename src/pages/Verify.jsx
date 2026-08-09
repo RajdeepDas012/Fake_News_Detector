@@ -32,13 +32,16 @@ export default function Verify() {
 
     try {
       const record = {
-        uid: user.uid, // Required by security rules!
-        userId: user.uid,
-        userEmail: user.email,
+        uid: user.uid,
+        headline: text.length > 100 ? text.substring(0, 100) + '...' : text,
         text: text,
-        verdict: analysisData.verdict || 'FAKE',
+        verdict: (analysisData.verdict || 'FAKE').toUpperCase(),
+        confidence: Number(analysisData.confidence || analysisData.confidence_score || 50),
         confidence_score: Number(analysisData.confidence || analysisData.confidence_score || 50),
+        reason: analysisData.reason || analysisData.summary || 'Analysis complete.',
         summary: analysisData.reason || analysisData.summary || 'Analysis complete.',
+        redFlags: analysisData.redFlags || analysisData.red_flags || [],
+        timestamp: serverTimestamp(),
         createdAt: serverTimestamp()
       };
 

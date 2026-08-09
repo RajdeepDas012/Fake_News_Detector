@@ -20,11 +20,14 @@ export default function Profile() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!user) {
+        setStats({ total: 0, fake: 0, real: 0, misleading: 0 });
+        return;
+      }
+
       try {
-        let snapshot = await getDocs(collection(db, 'searches'));
-        if (snapshot.empty) {
-          snapshot = await getDocs(collection(db, 'analyses'));
-        }
+        const q = query(collection(db, 'searches'), where('uid', '==', user.uid));
+        const snapshot = await getDocs(q);
         let total = snapshot.size;
         let fake = 0, real = 0, misleading = 0;
         snapshot.forEach((doc) => {
