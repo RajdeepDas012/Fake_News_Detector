@@ -450,12 +450,6 @@ export default function Verify() {
 
               {/* Visual Credibility Meter Bar */}
               <div className="mb-stack-md relative z-10 bg-level-2 p-3.5 rounded-lg border border-outline-variant/40">
-                <div className="flex justify-between items-center mb-1.5 text-xs font-bold uppercase tracking-wider">
-                  <span className="text-on-surface">Credibility Score: {displayConfidence}%</span>
-                  <span style={{ color: getMeterColor(displayConfidence) }}>
-                    {displayConfidence <= 40 ? 'LOW (FAKE)' : displayConfidence <= 70 ? 'MEDIUM (MISLEADING)' : 'HIGH (REAL)'}
-                  </span>
-                </div>
                 <div className="w-full h-3 bg-[#111] rounded-full overflow-hidden p-0.5 border border-outline-variant/30">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out shadow-sm"
