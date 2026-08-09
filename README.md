@@ -44,7 +44,7 @@ In a world flooded with misinformation, TruthCheck AI gives everyone the power t
 | Styling | CSS / Tailwind |
 | Authentication | Firebase Auth |
 | Database | Firebase Firestore |
-| AI Model | Google Gemini 2.5 Flash Lite |
+| AI Model | Google Gemini 3.1 Flash Lite |
 | Backend | Vercel Serverless Functions |
 | Deployment | Vercel |
 
